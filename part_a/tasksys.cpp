@@ -1,4 +1,5 @@
 #include "tasksys.h"
+#include <iostream>
 
 
 IRunnable::~IRunnable() {}
@@ -55,9 +56,33 @@ TaskSystemParallelSpawn::TaskSystemParallelSpawn(int num_threads): ITaskSystem(n
     // Implementations are free to add new class member variables
     // (requiring changes to tasksys.h).
     //
+    num_threads_ = num_threads;
+    threads_ = new std::thread[num_threads];
+    task_index_ = 0;
 }
 
-TaskSystemParallelSpawn::~TaskSystemParallelSpawn() {}
+TaskSystemParallelSpawn::~TaskSystemParallelSpawn() {
+    delete [] threads_;
+}
+
+void TaskSystemParallelSpawn::runThreadDynamic(IRunnable* runnable, int num_total_tasks){
+    int local_index;
+    while(1){
+
+        mutex_.lock();
+        local_index = task_index_++;
+        mutex_.unlock();
+        
+        if(local_index >= num_total_tasks)
+            break;
+
+        runnable->runTask(local_index, num_total_tasks);
+    }
+}
+
+void TaskSystemParallelSpawn::runThreadStatic(int task_id, IRunnable* runnable, int num_total_tasks){
+    runnable->runTask(task_id, num_total_tasks);
+}
 
 void TaskSystemParallelSpawn::run(IRunnable* runnable, int num_total_tasks) {
 
@@ -68,9 +93,37 @@ void TaskSystemParallelSpawn::run(IRunnable* runnable, int num_total_tasks) {
     // tasks sequentially on the calling thread.
     //
 
-    for (int i = 0; i < num_total_tasks; i++) {
-        runnable->runTask(i, num_total_tasks);
+    /**
+     * ==============================================
+     * DYNAMIC ASSIGNMENT
+     * ==============================================
+     */
+    int num_threads_needed = std::min(num_threads_, num_total_tasks);
+
+    for (int i=0; i<num_threads_needed; i++) {
+        //runnable->runTask(i, num_total_tasks);
+        threads_[i] = std::thread(&TaskSystemParallelSpawn::runThreadDynamic, this, runnable, num_total_tasks);
     }
+
+    for (int i = 0; i < num_threads_needed; i++){
+        threads_[i].join();
+    }
+
+    task_index_ = 0;
+
+    /**
+     * ==============================================
+     * STATIC ASSIGNMENT
+     * ==============================================
+     */
+    // for(int i=0; i<num_total_tasks; i++){
+    //     threads_[i] = std::thread(&TaskSystemParallelSpawn::runThreadStatic, this, i, runnable, num_total_tasks);
+    // }
+
+    // for (int i = 0; i < num_total_tasks; i++){
+    //     threads_[i].join();
+    // }
+    
 }
 
 TaskID TaskSystemParallelSpawn::runAsyncWithDeps(IRunnable* runnable, int num_total_tasks,
