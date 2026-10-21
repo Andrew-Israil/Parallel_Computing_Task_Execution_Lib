@@ -1,11 +1,8 @@
 
 # Assignment 2: Building A Task Execution Library from the Ground Up #
 
-**Due Thurs Oct 16, 11:59pm**
-
-**100 points total**
-
 ## Overview ##
+This repo is cloned from the Stanford CS149 Course repo, which is found [here](https://github.com/stanford-cs149/asst2). This represents my solution to the assignment.
 
 Everyone likes to complete tasks quickly, and in this assignment we are asking you to do just that! You will implement a C++ library that executes tasks provided by an application as efficiently as possible on a multi-core CPU.
 
