@@ -42,7 +42,7 @@ class TaskSystemParallelSpawn: public ITaskSystem {
                                 const std::vector<TaskID>& deps);
         void sync();
         void runThreadDynamic(IRunnable* runnable, int num_total_tasks);
-        void runThreadStatic(int task_id, IRunnable* runnable, int num_total_tasks);
+        void runThreadStatic(int thread_id, int num_threads_needed, IRunnable* runnable, int num_total_tasks);
 };
 
 /*

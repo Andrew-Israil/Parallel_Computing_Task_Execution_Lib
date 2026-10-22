@@ -80,8 +80,9 @@ void TaskSystemParallelSpawn::runThreadDynamic(IRunnable* runnable, int num_tota
     }
 }
 
-void TaskSystemParallelSpawn::runThreadStatic(int task_id, IRunnable* runnable, int num_total_tasks){
-    runnable->runTask(task_id, num_total_tasks);
+void TaskSystemParallelSpawn::runThreadStatic(int thread_id, int num_threads_needed, IRunnable* runnable, int num_total_tasks){
+    for(int i = thread_id; i < num_total_tasks; i += num_threads_needed)
+        runnable->runTask(i, num_total_tasks);
 }
 
 void TaskSystemParallelSpawn::run(IRunnable* runnable, int num_total_tasks) {
@@ -98,33 +99,33 @@ void TaskSystemParallelSpawn::run(IRunnable* runnable, int num_total_tasks) {
      * DYNAMIC ASSIGNMENT
      * ==============================================
      */
-    int num_threads_needed = std::min(num_threads_, num_total_tasks);
-
-    for (int i=0; i<num_threads_needed; i++) {
-        //runnable->runTask(i, num_total_tasks);
-        threads_[i] = std::thread(&TaskSystemParallelSpawn::runThreadDynamic, this, runnable, num_total_tasks);
-    }
-
-    for (int i = 0; i < num_threads_needed; i++){
-        threads_[i].join();
-    }
-
-    task_index_ = 0;
-
-    /**
-     * ==============================================
-     * STATIC ASSIGNMENT
-     * ==============================================
-     * Only works when the number of tasks is less than or equal to the number of threads
-     */
     // int num_threads_needed = std::min(num_threads_, num_total_tasks);
-    // for(int i=0; i<num_threads_needed; i++){
-    //     threads_[i] = std::thread(&TaskSystemParallelSpawn::runThreadStatic, this, i, runnable, num_total_tasks);
+
+    // for (int i = 0; i < num_threads_needed; i++) {
+    //     //runnable->runTask(i, num_total_tasks);
+    //     threads_[i] = std::thread(&TaskSystemParallelSpawn::runThreadDynamic, this, runnable, num_total_tasks);
     // }
 
     // for (int i = 0; i < num_threads_needed; i++){
     //     threads_[i].join();
     // }
+
+    // task_index_ = 0;
+
+    /**
+     * ==============================================
+     * STATIC ASSIGNMENT
+     * ==============================================
+     * 
+     */
+    int num_threads_needed = std::min(num_threads_, num_total_tasks);
+    for(int i = 0; i < num_threads_needed; i++){
+        threads_[i] = std::thread(&TaskSystemParallelSpawn::runThreadStatic, this, i, num_threads_needed, runnable, num_total_tasks);
+    }
+
+    for (int i = 0; i < num_threads_needed; i++){
+        threads_[i].join();
+    }
     
 }
 
