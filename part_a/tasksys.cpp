@@ -67,7 +67,7 @@ TaskSystemParallelSpawn::~TaskSystemParallelSpawn() {
 
 void TaskSystemParallelSpawn::runThreadDynamic(IRunnable* runnable, int num_total_tasks){
     int local_index;
-    while(1){
+    while(true){
 
         mutex_.lock();
         local_index = task_index_++;
@@ -157,6 +157,7 @@ TaskSystemParallelThreadPoolSpinning::TaskSystemParallelThreadPoolSpinning(int n
     // Implementations are free to add new class member variables
     // (requiring changes to tasksys.h).
     //
+    running_ = true;
     num_threads_ = num_threads;
     threads_ = new std::thread[num_threads];
     for(int i = 0; i < num_threads_; i++)
@@ -168,6 +169,7 @@ TaskSystemParallelThreadPoolSpinning::TaskSystemParallelThreadPoolSpinning(int n
 }
 
 TaskSystemParallelThreadPoolSpinning::~TaskSystemParallelThreadPoolSpinning() {
+    running_ = false;
     for(int i = 0; i < num_threads_; i++)
         threads_[i].join();
 
@@ -175,23 +177,22 @@ TaskSystemParallelThreadPoolSpinning::~TaskSystemParallelThreadPoolSpinning() {
 }
 
 void TaskSystemParallelThreadPoolSpinning::runThread(){
-    int local_index;
-    while(1){
+    int local_index, total_tasks;
+    while(running_){
         total_tasks_mutex_.lock();
-        int total_tasks = num_total_tasks_;
+        total_tasks = num_total_tasks_;
         total_tasks_mutex_.unlock();
         if(total_tasks){
             task_index_mutex_.lock();
             local_index = task_index_++;
             task_index_mutex_.unlock();
             
-            if(local_index >= num_total_tasks_)
-                break;
-
-            runnable_->runTask(local_index, num_total_tasks_);
-            finished_tasks_mutex_.lock();
-            finished_tasks_++;
-            finished_tasks_mutex_.unlock();
+            if(local_index < total_tasks){
+                runnable_->runTask(local_index, total_tasks);
+                finished_tasks_mutex_.lock();
+                finished_tasks_++;
+                finished_tasks_mutex_.unlock();
+            }
         }
     }
 }
@@ -203,10 +204,17 @@ void TaskSystemParallelThreadPoolSpinning::run(IRunnable* runnable, int num_tota
     // tasks sequentially on the calling thread.
     //
     runnable_ = runnable;
+
+    task_index_mutex_.lock();
+    task_index_ = 0;
+    task_index_mutex_.unlock();
+
+    total_tasks_mutex_.lock();
     num_total_tasks_ = num_total_tasks;
+    total_tasks_mutex_.unlock();
 
     int current_finished_tasks = 0;
-    while(1){
+    while(true){
         finished_tasks_mutex_.lock();
         current_finished_tasks = finished_tasks_;
         finished_tasks_mutex_.unlock(); 
@@ -217,6 +225,10 @@ void TaskSystemParallelThreadPoolSpinning::run(IRunnable* runnable, int num_tota
     total_tasks_mutex_.lock();
     num_total_tasks_ = 0;
     total_tasks_mutex_.unlock();
+
+    finished_tasks_mutex_.lock();
+    finished_tasks_ = 0;
+    finished_tasks_mutex_.unlock();
 }
 
 TaskID TaskSystemParallelThreadPoolSpinning::runAsyncWithDeps(IRunnable* runnable, int num_total_tasks,

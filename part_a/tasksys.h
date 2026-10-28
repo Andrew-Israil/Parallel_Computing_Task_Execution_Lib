@@ -62,6 +62,7 @@ class TaskSystemParallelThreadPoolSpinning: public ITaskSystem {
         IRunnable* runnable_;
         int num_total_tasks_;
         std::mutex total_tasks_mutex_;
+        bool running_;
     public:
         TaskSystemParallelThreadPoolSpinning(int num_threads);
         ~TaskSystemParallelThreadPoolSpinning();
